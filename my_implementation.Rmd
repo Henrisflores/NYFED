@@ -1,0 +1,35 @@
+---
+title: "NYFED"
+author: "Henrique"
+date: ""
+output: html_document
+---
+
+```{r setup warnings = FALSE}
+library(tidyverse)
+
+path_data <- "/home/henrique/Documents/Nowcasting/data/US"
+```
+
+```{r Specifications}
+Spec <- 
+readxl::read_xls("~/Documents/Nowcasting/Spec_US_example.xls")
+
+Spec$SeriesID
+```
+
+```{r Actual data}
+vintage = '2016-06-29.xls'; 
+
+Z <- 
+readxl::read_xls(paste0(path_data, "/", vintage)) %>% 
+  mutate_at(vars("Date"), as.Date)
+```
+
+```{r}
+Z %>% 
+  select(Date, Spec$SeriesID)
+```
+
+
+
