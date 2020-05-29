@@ -89,13 +89,12 @@ Z %>%
   geom_line()
 ```
 
-
 ```{r Data transfermations}
-freq_vec <- 
-replace(Spec$Frequency, which(Spec$Frequency == "m"), 1) %>% 
-  replace(., which(. == "q"), 3) %>% 
-  as.numeric() %>% 
-  setNames(Spec$SeriesID)
+frequency_vec <- 
+Spec$Frequency %>% 
+  str_replace("q", "3") %>% 
+  str_replace("m", "1") %>% 
+  as.numeric()
 
 lin <- function(z, freq) z
 
@@ -123,17 +122,14 @@ pca <- function(z, freq) {
 
 ```{r Transformed data} 
 X <- 
-map2(.x = Spec$Transformation,
-     .y = Spec$SeriesID,
-     .f = ~ {
-       y <- pull(Z[, .y])
-       get(.x)(y, freq_vec[.y])
-     }
+pmap(
+  list(Spec$Transformation, Spec$SeriesID, frequency_vec),
+  ~ get(..1)( pull(Z[, ..2]), ..3 )
 ) %>% 
   setNames(paste0("X_", Spec$SeriesID)) %>% 
-  bind_cols()
+  bind_cols() %>% 
+  bind_cols(Date = Z$Date, .)
 
-X <- bind_cols(Date = Z$Date, X)
 
 X
 ```
@@ -152,7 +148,7 @@ X %>%
  ggplot(aes(x = Date, y = X_INDPRO)) +
   geom_line(color = plotly_colors[2], na.rm = TRUE) 
 
-p <- 
+#p <- 
 gridExtra::grid.arrange(grobs = list(p_indpro_raw, p_indpro_x), nrow = 2)
 ```
 
