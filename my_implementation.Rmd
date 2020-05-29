@@ -8,14 +8,27 @@ output: html_document
 ```{r setup warnings = FALSE}
 library(tidyverse)
 
-path_data <- "/home/henrique/Documents/Nowcasting/data/US"
+path_data <- "/home/henrique/Documents/NYFED/data/US"
+
+plotly_colors <- c('#1f77b4',  # muted blue
+                   '#ff7f0e',  # safety orange
+                   '#2ca02c',  # cooked asparagus green
+                   '#d62728',  # brick red
+                   '#9467bd',  # muted purple
+                   '#8c564b',  # chestnut brown
+                   '#e377c2',  # raspberry yogurt pink
+                   '#7f7f7f',  # middle gray
+                   '#bcbd22',  # curry yellow-green
+                   '#17becf')  # blue-teal
 ```
 
 ```{r Specifications}
 Spec <- 
-readxl::read_xls("~/Documents/Nowcasting/Spec_US_example.xls")
+readxl::read_xls("~/Documents/NYFED/Spec_US_example.xls")
 
 Spec$SeriesID
+
+Spec
 ```
 
 ```{r Actual data}
@@ -27,9 +40,119 @@ readxl::read_xls(paste0(path_data, "/", vintage)) %>%
 ```
 
 ```{r}
-Z %>% 
+cols_contain_spec <- all(Spec$SeriesID %in% colnames(Z)[-1])
+
+
+if (cols_contain_spec) {
+ Z %>% 
   select(Date, Spec$SeriesID)
+}
+```
+
+Não há problema em ter redundância na hora de escolher as séries ?!?!?
+
+ * PAYEMS = Pay roll employment (saldo do vinculo empregaticio)
+ * JTSJOL = Admissoes em empregos de carteira assinada (vagas abertas)
+ * CPIAUCSL = inflation
+ * DGORDER = pedidos de bens duraveis 
+ * HSN1F = New home sales 
+ * RSAF = retail sales
+ * UNRATE = Taxa de desemprego
+ * HOUST = housing starts (inicio de construção de casas )
+ * INDPRO = produção industrial
+ * PPIFIS = indice de preços ao produtor (quanto variam os custos de insumos)
+ * DSPIC96 = personal income (renda)
+ * BOPTEXP = Exportação
+ * BOPTIMP = IMportação
+ * WHL... = Estoque de produtos (geral)
+ * TTLCONS = Gasto com construção
+ * IR =  Indice de preço importado (sabe preço de quanto importou e quantidade = criar indice)
+ * CPILFESL = Inflação sem coisas mais volateis
+ * PCEPILFE = Deflator core do PIB (indice de preço implicito do pib)
+ * PCEPI = Deflator headline do PIB
+ * PERMIT = permissões de novas construções imobiliarias
+ * TCU = capacidade de utilização da industria
+ * BUSINV = business in ventures (estoque das fabricas)
+ * IQ = indice de preço de exportação
+ * GACDISA066MSFRBNY = impar state manufacturing (indice tipo PMI -- survey)
+ * PCEC96 = Gasto real com consumo (das pessoas mas não temos certezas.... pode ter governo)
+ * GACDFSA066MSFRBPHI = survey especifico de filadelfia (vai entender...)
+ * GDPC1 = PIB
+ * ULCNFB = custo unitario do trabalho (medida de produtividade)
+ * A261RX1Q020SBEA = renda bruta domestica (soma de todos os salarios de todo mundo que trabalha / massa salarial)
+
+```{r Data description}
+Z %>% 
+#  filter(between(Date, as.Date("1986-01-01"), as.Date("2019-01-01"))) %>% 
+  ggplot(aes(x = Date, y = GACDFSA066MSFRBPHI)) +
+  geom_point() +
+  geom_line()
 ```
 
 
+```{r Data transfermations}
+freq_vec <- 
+replace(Spec$Frequency, which(Spec$Frequency == "m"), 1) %>% 
+  replace(., which(. == "q"), 3) %>% 
+  as.numeric() %>% 
+  setNames(Spec$SeriesID)
+
+lin <- function(z, freq) z
+
+chg <- function(z, freq) {
+  z - lag(z, freq)
+}
+
+ch1 <- function(z, freq) {
+  chg(z, 12)
+}
+
+pch <- function(z, freq) {
+  100 * ( z / lag(z, freq) - 1 )
+}
+
+pc1 <- function(z, freq) {
+  pch(z, 12)
+}
+
+pca <- function(z, freq) {
+  y <- z / lag(z, freq)
+  100 * ( y ** (freq / 12) - 1 )
+}
+```
+
+```{r Transformed data} 
+X <- 
+map2(.x = Spec$Transformation,
+     .y = Spec$SeriesID,
+     .f = ~ {
+       y <- pull(Z[, .y])
+       get(.x)(y, freq_vec[.y])
+     }
+) %>% 
+  setNames(paste0("X_", Spec$SeriesID)) %>% 
+  bind_cols()
+
+X <- bind_cols(Date = Z$Date, X)
+
+X
+```
+
+```{r}
+p_indpro_raw <- 
+Z %>% 
+ filter(Date >= as.Date("2000-01-01")) %>% 
+ ggplot(aes(x = Date, y = INDPRO)) +
+  geom_line(color = plotly_colors[1], na.rm = TRUE) 
+
+
+p_indpro_x <- 
+X %>% 
+ filter(Date >= as.Date("2000-01-01")) %>% 
+ ggplot(aes(x = Date, y = X_INDPRO)) +
+  geom_line(color = plotly_colors[2], na.rm = TRUE) 
+
+p <- 
+gridExtra::grid.arrange(grobs = list(p_indpro_raw, p_indpro_x), nrow = 2)
+```
 
