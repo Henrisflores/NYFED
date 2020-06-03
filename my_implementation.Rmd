@@ -2,7 +2,7 @@
 title: "NYFED"
 author: "Henrique"
 date: ""
-output: html_document
+output: html_notebook
 ---
 
 ```{r setup warnings = FALSE}
