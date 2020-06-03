@@ -1,11 +1,17 @@
 ---
-title: "NYFED"
+title: "Analysis"
 author: "Henrique"
 date: ""
-output: html_document
+output: 
+  html_document: 
+    theme: journal
+    highlight: monochrome
+    df_print: paged
+    fig_width: 10
+    fig_height: 7
 ---
 
-```{r setup warnings = FALSE}
+```{r setup, warnings = FALSE, include = FALSE}
 library(tidyverse)
 
 path_data <- "/home/henrique/Documents/NYFED/data/US"
@@ -22,11 +28,8 @@ plotly_colors <- c('#1f77b4',  # muted blue
                    '#17becf')  # blue-teal
 ```
 
-```{r Specifications}
-Spec <- 
-readxl::read_xls("~/Documents/NYFED/Spec_US_example.xls")
-
-Spec$SeriesID
+```{r Specifications, echo = TRUE}
+Spec <- readxl::read_xls("~/Documents/NYFED/Spec_US_example.xls")
 
 Spec
 ```
@@ -37,9 +40,11 @@ vintage = '2016-06-29.xls';
 Z <- 
 readxl::read_xls(paste0(path_data, "/", vintage)) %>% 
   mutate_at(vars("Date"), as.Date)
+
+Z
 ```
 
-```{r}
+```{r, include = FALSE}
 cols_contain_spec <- all(Spec$SeriesID %in% colnames(Z)[-1])
 
 
@@ -51,29 +56,29 @@ if (cols_contain_spec) {
 
 Não há problema em ter redundância na hora de escolher as séries ?!?!?
 
- * PAYEMS = Pay roll employment (saldo do vinculo empregaticio)
- * JTSJOL = Admissoes em empregos de carteira assinada (vagas abertas)
- * CPIAUCSL = inflation
- * DGORDER = pedidos de bens duraveis 
- * HSN1F = New home sales 
- * RSAF = retail sales
- * UNRATE = Taxa de desemprego
- * HOUST = housing starts (inicio de construção de casas )
- * INDPRO = produção industrial
- * PPIFIS = indice de preços ao produtor (quanto variam os custos de insumos)
- * DSPIC96 = personal income (renda)
- * BOPTEXP = Exportação
- * BOPTIMP = IMportação
- * WHL... = Estoque de produtos (geral)
- * TTLCONS = Gasto com construção
- * IR =  Indice de preço importado (sabe preço de quanto importou e quantidade = criar indice)
- * CPILFESL = Inflação sem coisas mais volateis
- * PCEPILFE = Deflator core do PIB (indice de preço implicito do pib)
- * PCEPI = Deflator headline do PIB
- * PERMIT = permissões de novas construções imobiliarias
- * TCU = capacidade de utilização da industria
- * BUSINV = business in ventures (estoque das fabricas)
- * IQ = indice de preço de exportação
+ * PAYEMS            = Pay roll employment (saldo do vinculo empregaticio)
+ * JTSJOL            = Admissoes em empregos de carteira assinada (vagas abertas)
+ * CPIAUCSL          = inflation
+ * DGORDER           = pedidos de bens duraveis 
+ * HSN1F             = New home sales 
+ * RSAF              = retail sales
+ * UNRATE            = Taxa de desemprego
+ * HOUST             = housing starts (inicio de construção de casas )
+ * INDPRO            = produção industrial
+ * PPIFIS            = indice de preços ao produtor (quanto variam os custos de insumos)
+ * DSPIC96           = personal income (renda)
+ * BOPTEXP           = Exportação
+ * BOPTIMP           = IMportação
+ * WHL...            = Estoque de produtos (geral)
+ * TTLCONS           = Gasto com construção
+ * IR                = Indice de preço importado (sabe preço de quanto importou e quantidade = criar indice)
+ * CPILFESL          = Inflação sem coisas mais volateis
+ * PCEPILFE          = Deflator core do PIB (indice de preço implicito do pib)
+ * PCEPI             = Deflator headline do PIB
+ * PERMIT            = permissões de novas construções imobiliarias
+ * TCU               = capacidade de utilização da industria
+ * BUSINV            = business in ventures (estoque das fabricas)
+ * IQ                = indice de preço de exportação
  * GACDISA066MSFRBNY = impar state manufacturing (indice tipo PMI -- survey)
  * PCEC96 = Gasto real com consumo (das pessoas mas não temos certezas.... pode ter governo)
  * GACDFSA066MSFRBPHI = survey especifico de filadelfia (vai entender...)
@@ -89,8 +94,9 @@ Z %>%
   geom_line()
 ```
 
-```{r Data transfermations}
-frequency_vec <- 
+Let us define the following data transformations
+```{r Data transformations}
+frequencies <- 
 Spec$Frequency %>% 
   str_replace("q", "3") %>% 
   str_replace("m", "1") %>% 
@@ -120,15 +126,26 @@ pca <- function(z, freq) {
 }
 ```
 
+He filters his columns via the Model column in Specs.
+We deliberatly are **not** filtering because I want to see
+where it all goes wrong.
+
 ```{r Transformed data} 
+# I do not need to consider all columns 
+remove_cols <- 
+Spec %>% 
+  filter(Model == 0) %>% 
+  select(SeriesID) %>% 
+  pull
+
 X <- 
 pmap(
-  list(Spec$Transformation, Spec$SeriesID, frequency_vec),
+  list(Spec$Transformation, Spec$SeriesID, frequencies),
   ~ get(..1)( pull(Z[, ..2]), ..3 )
 ) %>% 
   setNames(paste0("X_", Spec$SeriesID)) %>% 
   bind_cols() %>% 
-  bind_cols(Date = Z$Date, .)
+  bind_cols(Date = Z$Date, .) #%>% select(- tidyselect::all_of(paste0("X_", remove_cols)))
 
 
 X
@@ -151,4 +168,71 @@ X %>%
 #p <- 
 gridExtra::grid.arrange(grobs = list(p_indpro_raw, p_indpro_x), nrow = 2)
 ```
+
+# DFM (this is it!)
+```{r More data adjustment}
+Blocks <- 
+Spec %>% 
+  select(contains("Block")) %>% 
+  select(-contains("Global"))
+
+Blocks
+
+nQ <- 
+Spec %>% 
+  filter(!SeriesID %in% remove_cols) %>% 
+  select(Frequency) %>% 
+  pull %>% 
+  str_count("q") %>% 
+  sum
+
+nQ
+
+i_idio <- # -1 because we are dealing with dates.
+c(rep(1, ncol(X) - nQ  - 1), rep(0, nQ))
+
+R_mat = c(2, -1,  0,  0,  0,
+          3,  0, -1,  0,  0,
+          2,  0,  0, -1,  0,
+          1,  0,  0,  0, -1 ) %>% matrix(. , nrow = 4, ncol = 5)
+
+q = rep(0, 4)
+
+
+X %>% 
+  mutate_at(vars(-Date), ~ (.x - mean(.x, na.rm = TRUE))/ sd(.x, na.rm = TRUE))
+```
+
+We will deal with NAs in the following way:
+
+ - We will check if rows have more than 80% of their columns with NAs.
+ - We will remove rows from the beginning until we reach the first row that has
+   at least 80% of columns filled. Then we stop.
+ - We will remove rows from the ending until we reach the first row that has
+   at least 80% of columns filled. Then we stop.
+  
+```{r}
+condition <- 
+X %>% 
+  select(-Date) %>% 
+  (function(x) rowSums(is.na(x)) > ncol(X) * 0.8) %>% 
+  cumsum() 
+
+filtered_rows <- 
+pmap_dbl(.l = list(condition, 1:nrow(X), nrow(X):1),
+         .f = ~ (..1 == ..2 | ..1 == ..3)
+)  
+
+X[!filtered_rows, ]
+
+v <- 
+which(!is.na(X_f$X_PAYEMS))
+
+v[1]
+v[length(v)]
+
+spline(v, X_f$X_PAYEMS[v])
+```
+
+
 

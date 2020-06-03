@@ -1,13 +1,17 @@
 # Nowcasting
 
-This code implements the nowcasting framework described in "[Macroeconomic Nowcasting and Forecasting with Big Data](https://www.newyorkfed.org/research/staff_reports/sr830.html)" by Brandyn Bok, Daniele Caratelli, Domenico Giannone, Argia M. Sbordone, and Andrea Tambalotti, *Staff Reports 830*, Federal Reserve Bank of New York (prepared for Volume 10 of the *Annual Review of Economics*).
+This is a reimplementation of the nowcasting framework developed in
+"[Macroeconomic Nowcasting and Forecasting with Big Data](https://www.newyorkfed.org/research/staff_reports/sr830.html)" by Brandyn Bok, Daniele Caratelli, Domenico Giannone, Argia M. Sbordone, and Andrea Tambalotti, *Staff Reports 830*, Federal Reserve Bank of New York (prepared for Volume 10 of the *Annual Review of Economics*).
+using the R software language and tidyverse syntax.
 
-**Note:** These example files do not exactly reproduce the New York Fed Staff Nowcasting Report released every Friday because data redistribution restrictions prevent us from providing the complete data set used in our model.
+The matlab implementation developed by the NY FED is also available,
+implemented in matlab folder.
 
+**Note:** These example files do not exactly reproduce 
+the New York Fed Staff Nowcasting Report released every Friday 
+because data redistribution restrictions prevent us from 
+providing the complete data set used in our model.
 
-## Download instructions
-
-Download the code as a ZIP file by clicking the green 'Clone or download' button and selecting 'Download ZIP'.
 
 ## File and folder description
 
@@ -21,4 +25,6 @@ Download the code as a ZIP file by clicking the green 'Clone or download' button
 
 ## Required software and versioning
 
-MATLAB is required to run the code. The code was tested in MATLAB R2015b and later versions. Functionality with earlier versions of MATLAB is not guaranteed.
+MATLAB is required to run the code. 
+The code was tested in MATLAB R2015b and later versions. 
+Functionality with earlier versions of MATLAB is not guaranteed.
