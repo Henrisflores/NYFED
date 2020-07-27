@@ -140,8 +140,7 @@ pmap(
   bind_cols() %>% 
   bind_cols(Date = Z$Date, .) %>% 
   select(- tidyselect::all_of(remove_cols)) %>% 
-  filter(Date >= "2000-01-01") %>% 
-  select(Date, order[!order %in% remove_cols])
+  filter(Date >= "2000-01-01")
 
 
 X
@@ -229,6 +228,6 @@ Xn[!filtered_rows,] %>%
     y_min <- which(y, arr.ind = TRUE) %>% head(1)
     y_max <- which(y, arr.ind = TRUE) %>% tail(1)
     pracma::interp1(x = which(y), y = .x[y], xi = y_min:y_max, method = "spline")
-  })
+  }) %>% bind_cols()
 ```
 
