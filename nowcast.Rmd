@@ -14,8 +14,6 @@ output:
 ```{r setup, warnings = FALSE, include = FALSE}
 library(tidyverse)
 
-path_data <- "/home/henrique/Documents/NYFED/data/US"
-
 plotly_colors <- c('#1f77b4',  # muted blue
                    '#ff7f0e',  # safety orange
                    '#2ca02c',  # cooked asparagus green
@@ -29,7 +27,7 @@ plotly_colors <- c('#1f77b4',  # muted blue
 ```
 
 ```{r Specifications, echo = TRUE}
-Spec <- readxl::read_xls("~/Documents/NYFED/Spec_US_example.xls")
+Spec <- readxl::read_xls("Spec_US_example.xls")
 
 Spec
 ```
