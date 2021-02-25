@@ -7,20 +7,20 @@ frequency <-
 c("d", "w", "m", "q", "sa", "a")
 
 Spec <- setClass("Spec", slots = list(fields = "data.frame", 
-																			blocks = "data.frame", 
-																			units  = "character"))
+								 blocks = "data.frame", 
+								 units  = "character"))
 
 Fields <-
 raw %>%
   dplyr::filter(Model != 0) %>%
 	dplyr::select(tidyselect::all_of(field_names)) %>% 
 	mutate(Numeric_Frequency = case_when(
-                                    		Frequency == "d"  ~ 1,
-                                    		Frequency == "w"  ~ 7,
-                                    		Frequency == "m"  ~ 30,
-                                    		Frequency == "q"  ~ 3 * 30,
-                                    		Frequency == "sa" ~ 6 * 30,
-                                    		Frequency == "a"  ~ 12 * 30
+                                    	  Frequency == "d"  ~ 1,
+                                    	  Frequency == "w"  ~ 7,
+                                    	  Frequency == "m"  ~ 30,
+                                    	  Frequency == "q"  ~ 3 * 30,
+                                    	  Frequency == "sa" ~ 6 * 30,
+                                    	  Frequency == "a"  ~ 12 * 30
 	)) %>% 
 	arrange(desc(Numeric_Frequency))
 
@@ -39,9 +39,8 @@ case_when(
 
 Blocks <-
 raw[,grep("Block", colnames(raw))] %>%
-	mutate_if(~ any(is.na(.x)), ~ replace(.x, is.na, 0)) %>% 
-	rename_all(~ str_replace(colnames(Blocks), "Block", ""))
+	mutate_if(~ any(is.na(.x)), ~ replace(.x, is.na, 0)) 
+
+colnames(Blocks) <- str_replace(colnames(Blocks), "Block", "")
 
 spec <- Spec(fields = Fields, blocks = Blocks, units = UnitsTransformed)
-
-
