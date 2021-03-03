@@ -7,6 +7,7 @@ This repository wants to reproduce the nowcasting algorithm of NYFED in R.
  - tidyverse
  - readxl
  - R.matlab
+ - pracma
  
 ## Progress
 
