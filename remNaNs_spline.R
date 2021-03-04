@@ -15,31 +15,11 @@ fit_MA <- function(X, k) {
 	   dplyr::filter(dplyr::row_number() >= 2 * k + 1)
 } 
 
-apply_option1 <- function(X, k) {
-	`%>%` <- dplyr::`%>%`
-	
-	x <- dplyr::select(X, -1)
-	
-	x_clean <-
-	dplyr::mutate_if( x, 
-                  ~ any(is.na(.x)), 
-                  ~ replace(.x, is.na(.x), median(.x, na.rm = TRUE))
-									 ) 
-	
-	xMA <- fit_MA(x_clean, k) 
-	
-	dplyr::coalesce(x, xMA) %>% 
-		dplyr::bind_cols(Dates = dplyr::select(X, 1), .)
-}
-
 filter_rows_by_threshold <- function(x, e = 0.8) {
 	condition <- cumsum(which(rowSums(is.na(x)) / ncol(x) >= e))
 	filtered_rows <- 
-	purrr::pmap_dbl(.l = list(condition, 
-														1:length(condition), 
-														length(condition):1
-														),
-	                .f = ~ (..1 == ..2 | ..1 == ..3)
+	purrr::pmap(.l = list(condition,  1:length(condition),  length(condition):1),
+              .f = ~ (..1 == ..2 | ..1 == ..3)
 	)
 	
 	x[!filtered_rows, ]
@@ -63,11 +43,28 @@ matlab_spline <- function(x) {
 		dplyr::bind_cols()
 }
 
+apply_option1 <- function(X, k) {
+	`%>%` <- dplyr::`%>%`
+	
+	x <- dplyr::select(X, -1)
+	
+	x_clean <-
+	dplyr::mutate_if( x, 
+                  ~ any(is.na(.x)), 
+                  ~ replace(.x, is.na(.x), median(.x, na.rm = TRUE))
+									 ) 
+	
+	xMA <- fit_MA(x_clean, k) 
+	
+	dplyr::coalesce(x, xMA) %>% 
+		dplyr::bind_cols(Dates = dplyr::select(X, 1), .)
+}
+
 apply_option2 <- function(X, k) {
 	`%>%` <- dplyr::`%>%`
  	x <- dplyr::select(X, -1)
  	
- 	x_filtered <- filter_rows_by_threshold(x)
+ 	x_filtered <- filter_rows_by_threshold(x, 0.8)
 
  	x_splined <-	
  	matlab_spline(x_filtered) %>% 
@@ -79,7 +76,47 @@ apply_option2 <- function(X, k) {
  		dplyr::bind_cols(Date = dplyr::select(X, 1), .)
 }
 
-x <- dplyr::select(XZ$X, -Date)
 
-# apply_option3 <- function(X, k) {}
-# apply_option4 <- function(X, k) {}
+apply_option3 <- function(X) {
+    filter_rows_by_threshold(X, 1)
+}
+
+apply_option4 <- function(X, k) {
+	`%>%` <- dplyr::`%>%`
+	x <- dplyr::select(X, -1)
+	
+	x_filtered <- filter_rows_by_threshold(x, 1)
+
+	x_splined <-	
+ 	matlab_spline(x_filtered) %>% 
+		dplyr::mutate_all(~ replace(.x, is.na(.x), median(.x, na.rm = TRUE)))
+ 	
+ 	xMA <- fit_MA(x_splined, k)
+	
+ 	dplyr::coalesce(x, xMA)	%>% 
+ 		dplyr::bind_cols(Date = dplyr::select(X, 1), .)
+}
+
+apply_option5 <- function(X, k) {
+	`%>%` <- dplyr::`%>%`
+	x <- dplyr::select(X, -1)
+
+	x_splined <- 
+	matlab_spline(x) %>% 
+		dplyr::mutate_all( ~ replace(.x, is.na(.x), median(.x, na.rm = TRUE)))
+	
+	xMA <- fit_MA(x_splined, k)
+
+ 	dplyr::coalesce(x, xMA)	%>% 
+ 		dplyr::bind_cols(Date = dplyr::select(X, 1), .)
+}
+
+remNaNs_spline(M, method, k) {
+	switch (method, 
+		apply_option1(M, k),
+		apply_option2(M, k),
+		apply_option3(M),
+		apply_option4(M, k),
+		apply_option5(M, k)
+	)	
+}
