@@ -1,35 +1,48 @@
+fit_MA <- function(X, k) {
+	J = nrow(X)
+	N = ncol(X)
+	x = as.matrix(X)
+	
+	ones <- matrix(1, k, N)
+	y <- dplyr::as_tibble(
+		    rbind( ones * x[1:k, ]
+					   , x
+					   , ones * x[(J - k + 1):J, ]
+					   )
+		    )
+	
+	dplyr::mutate_all(y, ~ signal::filter(matrix(1, 2 * k + 1, 1) / (2 * k + 1), 1, .x )) %>% 
+	   dplyr::filter(dplyr::row_number() >= 2 * k + 1)
+} 
+
 apply_option1 <- function(X, k) {
 	`%>%` <- dplyr::`%>%`
 	
-	x <- dplyr::select(X, -Date)
+	x <- dplyr::select(X, -1)
 	
 	x_clean <-
 	dplyr::mutate_if( x, 
-									 ~ any(is.na(.x)), 
-									 ~ replace(.x, is.na(.x), median(.x, na.rm = TRUE))
-									 ) %>% 
-		as.matrix()
+                  ~ any(is.na(.x)), 
+                  ~ replace(.x, is.na(.x), median(.x, na.rm = TRUE))
+									 ) 
 	
-	# TODO: Extract this filter structure to a separate function
-	ones    <- matrix(1, k, ncol(x_clean))
-	x_clean <- dplyr::as_tibble(rbind(ones * x_clean[1:k, ], x_clean[1:k, ], ones * x_clean[]))
-
-	xMA <- 
-		dplyr::mutate_all(x_clean, ~ signal::filter(matrix(1, 2 * k + 1, 1) / (2 * k + 1), 1, .x )) %>% 
-		dplyr::filter(dplyr::row_number() >= 2 * k + 1) %>% 
-		dplyr::bind_cols(Date = dplyr::select(X, Date), .)
+	xMA <- fit_MA(x_clean, k) 
+	
+	dplyr::coalesce(x, xMA) %>% 
+		dplyr::bind_cols(Dates = dplyr::select(X, 1), .)
 }
 
-
-x <- dplyr::select(XZ$X, -Date)
-
 filter_rows_by_threshold <- function(x, e = 0.8) {
-	row_condition <- which(rowSums(is.na(x)) / ncol(x) > 0.8)
-	if (length(row_condition) != 1) {
-		row_condition <- c(min(row_condition), max(row_condition))
-	}
+	condition <- cumsum(which(rowSums(is.na(x)) / ncol(x) >= e))
+	filtered_rows <- 
+	purrr::pmap_dbl(.l = list(condition, 
+														1:length(condition), 
+														length(condition):1
+														),
+	                .f = ~ (..1 == ..2 | ..1 == ..3)
+	)
 	
-	dplyr::filter(x, !dplyr::row_number() %in% row_condition)
+	x[!filtered_rows, ]
 }
 
 matlab_spline <- function(x) {
@@ -52,7 +65,7 @@ matlab_spline <- function(x) {
 
 apply_option2 <- function(X, k) {
 	`%>%` <- dplyr::`%>%`
- 	x <- dplyr::select(X, -Date)
+ 	x <- dplyr::select(X, -1)
  	
  	x_filtered <- filter_rows_by_threshold(x)
 
@@ -60,9 +73,13 @@ apply_option2 <- function(X, k) {
  	matlab_spline(x_filtered) %>% 
 		dplyr::mutate_all(~ replace(.x, is.na(.x), median(.x, na.rm = TRUE)))
  	
-	ones    <- matrix(1, k, ncol(x_splined))
-	x_ones  <- dplyr::as_tibble(rbind(ones, as.matrix(x_splined), ones))
-
-	dplyr::mutate_all(x_ones, ~ signal::filter(matrix(1, 2 * k + 1, 1) / (2 * k + 1), 1, .x )) %>% 
-	dplyr::filter(dplyr::row_number() >= 2 * k + 1) #%>%  dplyr::bind_cols(Date = dplyr::select(X, Date), .)
+ 	xMA <- fit_MA(x_splined, k)
+	
+ 	dplyr::coalesce(x, xMA)	%>% 
+ 		dplyr::bind_cols(Date = dplyr::select(X, 1), .)
 }
+
+x <- dplyr::select(XZ$X, -Date)
+
+# apply_option3 <- function(X, k) {}
+# apply_option4 <- function(X, k) {}
