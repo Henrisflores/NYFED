@@ -1,3 +1,11 @@
+# remNaNs_spline 
+
+# -------------------------------------------------
+#
+# This module is a direct translation of the matlab counterpart.
+# 
+# -------------------------------------------------
+
 fit_MA <- function(X, k) {
 	J = nrow(X)
 	N = ncol(X)
@@ -16,10 +24,10 @@ fit_MA <- function(X, k) {
 } 
 
 filter_rows_by_threshold <- function(x, e = 0.8) {
-	condition <- cumsum(which(rowSums(is.na(x)) / ncol(x) >= e))
+	condition <- cumsum(rowSums(is.na(x)) / ncol(x) >= e)
 	filtered_rows <- 
-	purrr::pmap(.l = list(condition,  1:length(condition),  length(condition):1),
-              .f = ~ (..1 == ..2 | ..1 == ..3)
+	purrr::pmap_lgl(.l = list(condition,  1:length(condition),  length(condition):1),
+                  .f = ~ (..1 == ..2 | ..1 == ..3)
 	)
 	
 	x[!filtered_rows, ]
@@ -43,10 +51,8 @@ matlab_spline <- function(x) {
 		dplyr::bind_cols()
 }
 
-apply_option1 <- function(X, k) {
+apply_option1 <- function(x, k) {
 	`%>%` <- dplyr::`%>%`
-	
-	x <- dplyr::select(X, -1)
 	
 	x_clean <-
 	dplyr::mutate_if( x, 
@@ -55,14 +61,13 @@ apply_option1 <- function(X, k) {
 									 ) 
 	
 	xMA <- fit_MA(x_clean, k) 
-	
-	dplyr::coalesce(x, xMA) %>% 
-		dplyr::bind_cols(Dates = dplyr::select(X, 1), .)
+	x_final <- dplyr::coalesce(x, xMA) 
+ 	
+	list("X" = x_final, "indNaN" = tidyr::as_tibble(is.na(x)))
 }
 
-apply_option2 <- function(X, k) {
+apply_option2 <- function(x, k) {
 	`%>%` <- dplyr::`%>%`
- 	x <- dplyr::select(X, -1)
  	
  	x_filtered <- filter_rows_by_threshold(x, 0.8)
 
@@ -71,19 +76,18 @@ apply_option2 <- function(X, k) {
 		dplyr::mutate_all(~ replace(.x, is.na(.x), median(.x, na.rm = TRUE)))
  	
  	xMA <- fit_MA(x_splined, k)
-	
- 	dplyr::coalesce(x, xMA)	%>% 
- 		dplyr::bind_cols(Date = dplyr::select(X, 1), .)
+ 	x_final <- dplyr::coalesce(x_filtered, xMA)	
+ 	
+ 	list("X" = x_final, "indNaN" = tidyr::as_tibble(is.na(x_filtered)))
 }
 
 
-apply_option3 <- function(X) {
-    filter_rows_by_threshold(X, 1)
+apply_option3 <- function(x) {
+    filter_rows_by_threshold(x, 1)
 }
 
-apply_option4 <- function(X, k) {
+apply_option4 <- function(x, k) {
 	`%>%` <- dplyr::`%>%`
-	x <- dplyr::select(X, -1)
 	
 	x_filtered <- filter_rows_by_threshold(x, 1)
 
@@ -92,14 +96,14 @@ apply_option4 <- function(X, k) {
 		dplyr::mutate_all(~ replace(.x, is.na(.x), median(.x, na.rm = TRUE)))
  	
  	xMA <- fit_MA(x_splined, k)
-	
- 	dplyr::coalesce(x, xMA)	%>% 
- 		dplyr::bind_cols(Date = dplyr::select(X, 1), .)
+
+ 	x_final <- dplyr::coalesce(x_filtered, xMA)
+ 	
+ 	list("X" = x_final, "indNaN" = tidyr::as_tibble(is.na(x_filtered)))
 }
 
-apply_option5 <- function(X, k) {
+apply_option5 <- function(x, k) {
 	`%>%` <- dplyr::`%>%`
-	x <- dplyr::select(X, -1)
 
 	x_splined <- 
 	matlab_spline(x) %>% 
@@ -107,16 +111,34 @@ apply_option5 <- function(X, k) {
 	
 	xMA <- fit_MA(x_splined, k)
 
- 	dplyr::coalesce(x, xMA)	%>% 
- 		dplyr::bind_cols(Date = dplyr::select(X, 1), .)
+	x_final <- dplyr::coalesce(x, xMA)	
+ 	
+ 	list("X" = x_final, "indNaN" = tidyr::as_tibble(is.na(x)))
 }
 
-remNaNs_spline(M, method, k) {
+remNaNs_spline <- function(M, k, method) {
+	cols_class <- vapply(M, class, "", USE.NAMES = FALSE)
+	dates <- vector(mode = "numeric", length = nrow(M))
+	if (cols_class[1] == "Date") {
+		m <- dplyr::select(M, -1)
+		dates <- dplyr::select(M, 1)
+	} else {
+		m <- M
+	}
+
+	mNan <-	
 	switch (method, 
-		apply_option1(M, k),
-		apply_option2(M, k),
-		apply_option3(M),
-		apply_option4(M, k),
-		apply_option5(M, k)
+		apply_option1(m, k),
+		apply_option2(m, k),
+		apply_option3(m),
+		apply_option4(m, k),
+		apply_option5(m, k)
 	)	
+	
+	if (cols_class[1] == "Date") {
+		colname <- colnames(M)[1]
+		mNan[[1]] <- dplyr::bind_cols(colname := dates, mNan[[1]])
+	} 
+	
+	mNan	
 }

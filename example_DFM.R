@@ -1,11 +1,12 @@
 # TODO: dependencies do not deal with mat and xlxs extensions
-dependencies <- 
-c(  "load_spec.R"
-	, "load_data.R"
-	, "transformation_functions.R"
+includes <- 
+c(  "functions/load_spec.R"
+	, "functions/load_data.R"
+	, "functions/remNaNs_spline.R"
+	, "functions/transformation_functions.R"
 )
 
-lapply(dependencies, function(.x) source(.x))
+lapply(includes, function(.x) source(.x))
 
 plotly_colors <- c('#1f77b4',  # muted blue
                    '#ff7f0e',  # safety orange
@@ -43,4 +44,4 @@ if (FALSE) {
 	gridExtra::grid.arrange(grobs = list(plot1, plot2), nrow = 2)
 }
 
-# compute remNaNs_spline
+# Doing: dfm

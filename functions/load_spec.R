@@ -14,11 +14,12 @@ load_spec <- function(spec_path) {
 	frequency <-
 	c("d", "w", "m", "q", "sa", "a")
 
-	raw <- readxl::read_xls(spec_path)
+	raw <- 
+	readxl::read_xls(spec_path) %>% 
+	  dplyr::filter(Model != 0)
 	
-	Fields <-
+	raw_ordered <-
 	raw %>%
-	  dplyr::filter(Model != 0) %>%
 		dplyr::mutate(Numeric_Frequency = dplyr::case_when(
 	                                    	  							Frequency == "d"  ~ 1,
 	                                    	  							Frequency == "w"  ~ 7,
@@ -27,8 +28,9 @@ load_spec <- function(spec_path) {
 	                                    	  							Frequency == "sa" ~ 6 * 30,
 	                                    	  							Frequency == "a"  ~ 12 * 30
 		)) %>% 
-		dplyr::arrange(dplyr::desc(Numeric_Frequency)) %>% 
-		dplyr::select(tidyselect::all_of(field_names)) 
+		dplyr::arrange(Numeric_Frequency) 
+	
+	Fields <- dplyr::select(raw_ordered, tidyselect::all_of(field_names)) 
 	
 	UnitsTransformed <-
 	dplyr::case_when(
@@ -44,7 +46,7 @@ load_spec <- function(spec_path) {
 	)
 
 	Blocks <-
-	raw[,grep("Block", colnames(raw))] %>%
+	raw_ordered[,grep("Block", colnames(raw_ordered))] %>%
 		dplyr::mutate_if(~ any(is.na(.x)), ~ replace(.x, is.na, 0)) 
 
   colnames(Blocks) <- stringr::str_replace(colnames(Blocks), "Block", "")
