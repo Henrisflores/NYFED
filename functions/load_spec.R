@@ -1,6 +1,7 @@
-Spec <- setClass("Spec", slots = list(fields = "data.frame", 
-								      blocks = "data.frame", 
-								      units  = "character"))
+Spec <- setClass("Spec", slots = list(fields = "data.frame"
+                                     , blocks = "data.frame"
+                                     , units  = "character")
+)
 
 load_spec <- function(spec_path) {
   stopifnot(stringr::str_detect(spec_path, ".xls"))
@@ -16,7 +17,7 @@ load_spec <- function(spec_path) {
   readxl::read_xls(spec_path) %>% 
     dplyr::filter(Model != 0)
 
-  raw_ordered <-
+  raw_filtered <-
   raw %>%
     dplyr::mutate(Numeric_Frequency = dplyr::case_when(
                                                       Frequency == "d"  ~ 1,
@@ -28,7 +29,7 @@ load_spec <- function(spec_path) {
     )) %>% 
     dplyr::arrange(Numeric_Frequency) 
 
-   Fields <- dplyr::select(raw_ordered, tidyselect::all_of(field_names)) 
+   Fields <- dplyr::select(raw_filtered, tidyselect::all_of(field_names)) 
 
    UnitsTransformed <-
    dplyr::case_when(
@@ -44,7 +45,7 @@ load_spec <- function(spec_path) {
    )
 
    Blocks <-
-   raw_ordered[,grep("Block", colnames(raw_ordered))] %>%
+   raw_filtered[,grep("Block", colnames(raw_ordered))] %>%
      dplyr::mutate_if(~ any(is.na(.x)), ~ replace(.x, is.na, 0)) 
 
    colnames(Blocks) <- stringr::str_replace(colnames(Blocks), "Block", "")
